@@ -129,6 +129,10 @@ def build_model(kind: str, corpus: Corpus, seed: int, timeout: float):
     if kind == "mock":
         return MockModel(corpus=corpus, seed=seed)
     try:
+        if os.environ.get("ARENA_PROVIDER", "").strip().lower() == "openai":
+            from harness.openai_model import OpenAIRealModel
+
+            return OpenAIRealModel.from_env(timeout=timeout)
         return RealModel.from_env(timeout=timeout)
     except RealModelError as exc:
         raise SystemExit(f"\n{exc}\n")
@@ -209,6 +213,7 @@ def _diagnostic(result, corpus) -> dict:
         "abstain": False,
         "citations": [],
         "retrieved_doc_ids": [],
+        "search_queries": [],
         "model_final_text": "",
         "model_final_chars": 0,
         "model_final_truncated": False,
@@ -272,6 +277,10 @@ def _diagnostic(result, corpus) -> dict:
                 continue
             if not isinstance(record, dict) or record.get("event") != "tool_call":
                 continue
+            if record.get("name") == "search":
+                query = record.get("query")
+                if isinstance(query, str):
+                    diag["search_queries"].append(query[:500])
             mode = record.get("flaky_mode")
             if isinstance(mode, str) and mode and mode != "none":
                 diag["flaky_modes"][mode] = diag["flaky_modes"].get(mode, 0) + 1
@@ -336,9 +345,19 @@ def main(argv=None) -> int:
 
     _probe, layer_names = build_middleware(args.layers)
     del _probe  # a FRESH stack per brief; no state may leak between runs
+    openai_prompt = None
+    if (
+        args.prompt_addendum
+        and os.environ.get("ARENA_PROVIDER", "").strip().lower() == "openai"
+    ):
+        from harness.agent import ARENA_SYSTEM_PROMPT_REAL
+
+        openai_prompt = ARENA_SYSTEM_PROMPT_REAL
+
     config = RunnerConfig(
         flaky=not args.no_flaky,
-        prompt_addendum=args.prompt_addendum,
+        prompt_addendum=args.prompt_addendum and openai_prompt is None,
+        **({"system_prompt": openai_prompt} if openai_prompt is not None else {}),
         **({"wall_clock_seconds": args.max_seconds} if args.max_seconds else {}),
         **({"max_tokens": args.max_tokens} if args.max_tokens else {}),
     )

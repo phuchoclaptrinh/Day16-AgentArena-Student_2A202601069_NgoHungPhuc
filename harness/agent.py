@@ -203,15 +203,44 @@ _FINAL_MARKER = "FINAL:"
 REAL_MODEL_PROMPT_ADDENDUM = """PHỤ LỤC GIAO THỨC — BẮT BUỘC. Nếu có mâu thuẫn, phụ lục này thắng.
 
 A. PHẢI TÌM TRƯỚC KHI ĐƯỢC PHÉP NÓI "KHÔNG ĐỦ CĂN CỨ".
-   Lượt đầu tiên của bạn luôn luôn là một ACTION gọi search. Không được kết
-   luận ở lượt đầu tiên trong bất kỳ trường hợp nào.
+   HAI lượt đầu tiên của bạn luôn luôn là hai ACTION gọi search với HAI truy
+   vấn khác nhau và k=5. Không được gọi fetch_doc trước khi hoàn thành cả hai.
+   Truy vấn thứ nhất bám sát câu hỏi. Truy vấn thứ hai bỏ chi tiết kể chuyện
+   gây nhiễu, dùng từ đồng nghĩa theo cách đặt tên của doanh nghiệp và tập trung
+   vào tên chủ đề, quy trình hoặc chính sách nội bộ; không chỉ đảo lại cùng một
+   nhóm từ của câu hỏi.
+   Phải search lần thứ BA nếu câu hỏi yêu cầu tổng hợp nhiều thực thể, một số
+   liệu kèm verdict, hoặc sau hai search vẫn chưa có tài liệu trực tiếp trả lời.
+   Truy vấn thứ ba chỉ gồm 3-6 cụm từ khoá quan trọng về LOẠI DỮ KIỆN được hỏi
+   (quy định, thời hạn, báo cáo, thống kê, số trường hợp...) cùng phòng ban và
+   tín hiệu vòng đời (mới, lần đầu, hiện hành...). Nếu hai search đầu chỉ tìm
+   thấy tài liệu gần nghĩa nhưng sai chủ đề, query thứ ba phải BỎ các danh từ
+   bề mặt của người dùng có thể không tồn tại trong taxonomy nội bộ; chỉ giữ
+   loại văn bản/dữ kiện, phòng ban, trạng thái vòng đời và một từ chủ đề rộng.
+   Không nhồi cả câu hỏi vào query. Nếu câu hỏi có nhiều vế, phân bổ các truy
+   vấn để phủ từng vế thiết yếu; không để một mã ticket phụ chiếm mọi truy vấn.
+   Không lặp nguyên văn truy vấn trước đó.
    Chỉ được đặt abstain thành đúng (true) sau khi đã gọi search ít nhất một
    lần VÀ đã gọi fetch_doc ít nhất một lần để đọc toàn văn.
    Câu hỏi thường KHÔNG dùng cùng từ ngữ với tài liệu chứa câu trả lời. Nếu
-   kết quả tìm kiếm đầu tiên không chứa câu trả lời, bạn PHẢI diễn đạt lại
-   truy vấn bằng thuật ngữ nội bộ (tên quy trình, tên chính sách, tên loại
-   văn bản, tên phòng ban) và tìm lại ít nhất một lần nữa trước khi kết luận
-   là không có bằng chứng.
+   Sau khi search, chọn tối đa BỐN tài liệu phù hợp nhất để fetch_doc. Ưu tiên
+   văn bản chính sách, báo cáo hoặc tài liệu thuộc đúng phòng ban/chủ đề được
+   hỏi; không fetch tài liệu chỉ vì nó trùng một mã ticket phụ trong câu hỏi.
+   Trước khi FINAL, phải fetch ÍT NHẤT HAI tài liệu khác nhau nếu kết quả search
+   có từ hai tài liệu cùng chủ đề chính trở lên. Tài liệu thứ nhất là nguồn trả
+   lời trực tiếp; tài liệu thứ hai là nguồn kiểm chứng khác loại. Nếu trong kết
+   quả search có BÁO CÁO cùng chủ đề chính với nguồn trực tiếp thì tài liệu kiểm
+   chứng BẮT BUỘC là báo cáo đó, không được thay bằng một chính sách khác chỉ vì
+   chính sách ấy xếp hạng cao hơn. Với câu hỏi hỏi số lượng/thống kê, bắt buộc fetch một
+   tài liệu có tiêu đề hoặc nội dung là BÁO CÁO đúng chủ đề và đúng phòng ban.
+   Với câu hỏi hỏi quy định/thời hạn, bắt buộc fetch một VĂN BẢN CHÍNH THỨC hoặc
+   CHÍNH SÁCH đúng chủ đề. Sau khi fetch báo cáo cùng chủ đề, claims phải giữ một
+   dòng nội dung chính của báo cáo ấy nếu dòng đó mô tả số trường hợp hoặc cách
+   xử lý. Với câu hỏi chứa một tình huống hay mã ticket phụ rồi
+   mới hỏi chính sách/thống kê, tài liệu ticket chỉ là bối cảnh: không được FINAL
+   trước khi đã fetch nguồn chính sách hoặc báo cáo trả lời vế được hỏi.
+   Nếu kết quả tìm kiếm cho thấy hai tài liệu cùng chủ đề nhưng có con số hoặc
+   quy định khác nhau, bắt buộc dành hai lượt fetch_doc để đọc cả hai phía.
    Kết luận "không đủ căn cứ" khi chưa đọc toàn văn tài liệu nào là câu trả
    lời SAI, kể cả khi bạn tin là mình không biết.
 
@@ -242,14 +271,32 @@ D. MỖI PHẦN TỬ claims LÀ MỘT CÂU CHÉP NGUYÊN VĂN.
    Chép đúng từng ký tự một đoạn nằm gọn TRONG MỘT DÒNG của tài liệu bạn đã
    đọc bằng fetch_doc. Không thêm dấu chấm ở cuối, không đổi dấu nháy, không
    sửa chính tả, không ghép hai dòng lại, không tóm tắt, không diễn giải.
-   Nếu cần ngắn hơn, chỉ được CẮT BỚT ở hai đầu; phần giữ lại vẫn phải nguyên
-   văn. Mỗi câu trích không quá 400 ký tự. Cắt bớt là hợp lệ, viết lại thì mất
-   điểm.
+   Mỗi claim BẮT BUỘC chép TRỌN DÒNG VẬT LÝ chứa dữ kiện trả lời. Không được
+   chỉ chọn một câu ngữ pháp ngắn hơn từ dòng đó và không được dừng ở dấu chấm
+   đầu tiên. "Một câu trích" ở đây có thể chứa nhiều câu ngữ pháp miễn là tất
+   cả nằm trên đúng một dòng vật lý của kết quả fetch_doc.
+   Chỉ khi cả dòng dài quá 400 ký tự mới được CẮT BỚT ở hai đầu để lấy một đoạn
+   liên tục tối đa 400 ký tự vẫn bao phủ dữ kiện trả lời. Phần giữ lại phải
+   nguyên văn. Cắt thì hợp lệ, viết lại thì mất điểm.
+   Dùng tối đa bốn claims để PHỦ ĐỦ các dữ kiện cần kiểm toán, không chỉ chép
+   câu kết luận cuối. Với câu hỏi về sự cố hoặc quy trình, phải trích cả dòng
+   mô tả tình trạng/nguyên nhân và dòng nêu hành động chuẩn nếu chúng cùng liên
+   quan. Với câu hỏi thống kê, phải trích dòng chứa con số đúng chủ đề. Với mỗi
+   tài liệu đã fetch thuộc trực tiếp chủ đề chính, ưu tiên giữ một dòng nội dung
+   quan trọng thay vì bỏ toàn bộ tài liệu đó khỏi claims.
 
 E. KẾT THÚC SỚM.
    Mỗi lượt chỉ gọi đúng một công cụ. Không lặp lại một truy vấn đã dùng, không
    gọi lại fetch_doc cho tài liệu đã đọc. Ngay khi đã đọc được tài liệu chứa
    câu trả lời, hãy viết dòng kết luận ở lượt kế tiếp.
+
+   Nếu các tài liệu đã đọc đưa ra quy định mâu thuẫn, không tự chọn một phía.
+   Phải tạo claim riêng chép trọn dòng của TỪNG phía, gắn đúng doc_id tương ứng,
+   nêu rõ mâu thuẫn trong answer và đặt abstain thành true.
+   Nhiều tài liệu cùng chủ đề KHÔNG tự động là mâu thuẫn. Nếu ít nhất một tài
+   liệu hiện hành trả lời trực tiếp và không có quy định cùng phạm vi phủ định
+   nó, phải trả lời với abstain=false. Không abstain chỉ vì có FAQ, báo cáo hoặc
+   tài liệu bổ sung bên cạnh chính sách chính.
 
 F. KHI CÂU HỎI YÊU CẦU CHỌN MỘT KẾT LUẬN.
    Nếu câu hỏi liệt kê sẵn vài phương án đánh chữ cái trong ngoặc — (a), (b), (c) —
@@ -257,7 +304,10 @@ F. KHI CÂU HỎI YÊU CẦU CHỌN MỘT KẾT LUẬN.
    MỘT chuỗi duy nhất, chép nguyên văn đúng từng chữ phương án đã chọn từ câu hỏi,
    không diễn giải lại. Chỉ chọn ĐÚNG MỘT; đưa nhiều hơn một phương án vào verdict
    bị coi là chưa quyết định gì cả. Trường answer vẫn phải trả lời đầy đủ câu hỏi
-   như bình thường. Câu hỏi không liệt kê phương án nào thì bỏ hẳn khóa verdict."""
+   như bình thường. Trước khi chọn verdict, claims phải trích đủ mọi dữ kiện mà
+   kết luận đó dựa vào. Một kết luận đúng nhưng không được chính claims hỗ trợ
+   vẫn bị tính là sai. Câu hỏi không liệt kê phương án nào thì bỏ hẳn khóa
+   verdict."""
 
 
 def real_model_system_prompt(base: str = ARENA_SYSTEM_PROMPT) -> str:

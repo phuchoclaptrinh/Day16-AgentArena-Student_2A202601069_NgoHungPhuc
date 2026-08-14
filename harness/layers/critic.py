@@ -73,13 +73,56 @@ from __future__ import annotations
 from harness.middleware import Middleware
 
 
+def _observed_source(ctx, text: str):
+    if ctx.corpus is None or not isinstance(text, str) or not ctx.saw(text):
+        return None
+    return next(
+        (
+            doc
+            for doc in ctx.corpus.docs
+            if doc.body in ctx.observed_text
+            and any(text in line for line in doc.body.splitlines())
+        ),
+        None,
+    )
+
+
+def _split_fused_claim(ctx, claim: dict) -> list[dict]:
+    """Tìm đúng một điểm nối ``" và "`` giữa hai nguồn đã quan sát."""
+    text = claim.get("text")
+    if not isinstance(text, str):
+        return []
+
+    separator = " và "
+    start = 0
+    while True:
+        boundary = text.find(separator, start)
+        if boundary < 0:
+            return []
+
+        left = text[:boundary]
+        right = text[boundary + len(separator) :]
+        left_source = _observed_source(ctx, left)
+        right_source = _observed_source(ctx, right)
+        if (
+            left_source is not None
+            and right_source is not None
+            and left_source.doc_id != right_source.doc_id
+        ):
+            return [
+                {**claim, "text": left, "doc_id": left_source.doc_id},
+                {**claim, "text": right, "doc_id": right_source.doc_id},
+            ]
+        start = boundary + len(separator)
+
+
 class Critic(Middleware):
     """Xoá những gì bằng chứng không đỡ; abstain khi không còn gì."""
 
     name = "critic"
 
     def after_agent(self, ctx, report):
-        # TODO (§2): khoảng 10-25 dòng.
+        # Đã cài đặt (§2).
         #  1. Lấy report["claims"]; nếu rỗng hoặc không phải list thì thôi.
         #  2. Với mỗi claim: nếu claim["text"] có trong ctx.observed_text
         #     -> giữ nguyên (KHÔNG sửa chữ).
@@ -91,4 +134,36 @@ class Critic(Middleware):
         #     claims = [], citations = [], và viết lại "answer" nói rõ là
         #     không đủ căn cứ.
         #  6. Cập nhật report["citations"] cho khớp với claims còn lại.
-        return report  # <- mặc định KHÔNG LÀM GÌ: agent vẫn chạy được
+        claims = report.get("claims")
+        if not isinstance(claims, list):
+            return report
+
+        kept = []
+        for claim in claims:
+            if not isinstance(claim, dict):
+                continue
+            text = claim.get("text")
+            if not isinstance(text, str) or not text:
+                continue
+            if ctx.saw(text):
+                kept.append(claim)
+                continue
+
+            split_claims = _split_fused_claim(ctx, claim)
+            if split_claims:
+                kept.extend(split_claims)
+                report["abstain"] = True
+
+        report["claims"] = kept
+        report["citations"] = sorted(
+            {
+                claim.get("doc_id")
+                for claim in kept
+                if isinstance(claim, dict) and isinstance(claim.get("doc_id"), str)
+            }
+        )
+        if not kept:
+            report["abstain"] = True
+            report["citations"] = []
+            report["answer"] = "Không đủ căn cứ trong các tài liệu đã quan sát để kết luận."
+        return report
