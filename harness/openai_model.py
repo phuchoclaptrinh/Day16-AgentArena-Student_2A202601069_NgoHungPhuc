@@ -78,9 +78,11 @@ def _expected_document(question: str, messages: list[dict]) -> str | None:
     expected_kind = None
     if any(term in source for term in ("boc do", "bi thuong", "tai nan")):
         expected_kind = "van ban chinh thuc"
+    elif any(term in source for term in ("quy dinh", "thoi han", "bao lau")):
+        expected_kind = "van ban chinh thuc"
     elif any(
         term in source
-        for term in ("thong ke", "bao nhieu", "con so", "so vu", "doi tra", "hoan tien")
+        for term in ("thong ke", "con so", "so vu", "so truong hop", "doi tra", "hoan tien")
     ):
         expected_kind = "bao cao"
     if expected_kind is None:
@@ -141,16 +143,18 @@ def _structural_query(question: str, original: str) -> str:
     source = _plain(question + " " + original)
     terms: list[str] = []
 
-    if any(term in source for term in ("thong ke", "bao nhieu", "con so", "so vu")):
-        terms.extend(("báo cáo nội bộ", "thống kê"))
+    if any(term in source for term in ("thong ke", "con so", "so vu", "so truong hop")):
+        terms.extend(("báo cáo", "thống kê"))
     if any(term in source for term in ("doi tra", "hoan tien")):
-        terms.extend(("báo cáo nội bộ", "chính sách hoàn tiền cho khách hàng"))
+        terms.extend(("báo cáo", "chính sách hoàn tiền cho khách hàng"))
     if any(term in source for term in ("doi tac", "hop tac", "don vi hop tac")):
         terms.append("quy trình làm việc với nhà cung cấp")
     if any(term in source for term in ("lan dau", "moi ky")):
         terms.append("mới")
     if any(term in source for term in ("boc do", "bi thuong", "tai nan")):
         terms.append("an toàn lao động tại kho")
+    if "chi phi cong tac" in source:
+        terms.append("quy định báo cáo chi phí công tác")
     if any(term in source for term in ("quy dinh", "thoi han", "bao lau")):
         terms.append("văn bản chính thức")
 
@@ -260,7 +264,7 @@ class OpenAIRealModel(RealModel):
         if parsed.tool == "fetch_doc" and len(previous_searches) >= 2:
             source = _plain(question)
             searched_report = any(
-                "bao cao noi bo" in _plain(str(args.get("query", "")))
+                "bao cao" in _plain(str(args.get("query", "")))
                 for args in previous_searches
             )
             if (

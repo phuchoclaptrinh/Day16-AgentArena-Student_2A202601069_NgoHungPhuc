@@ -193,7 +193,7 @@ def fingerprints() -> dict:
 
 def test_no_instructor_package_ships():
     offenders = [
-        str(p.relative_to(REPO_ROOT))
+        p.relative_to(REPO_ROOT).as_posix()
         for p in REPO_ROOT.rglob("*")
         if p.name in {"instructor", "briefs_private.json"}
         or (p.is_dir() and p.name == "reference" and (p / "oracle.py").exists())
@@ -219,7 +219,7 @@ def test_no_module_imports_the_instructor_package():
             continue
         text = _read(path)
         if text and _IMPORT_RE.search(text):
-            offenders.append(str(path.relative_to(REPO_ROOT)))
+            offenders.append(path.relative_to(REPO_ROOT).as_posix())
     assert offenders == [], offenders
 
 
@@ -283,7 +283,7 @@ def test_no_scored_brief_id_appears_anywhere():
             continue
         found = sorted({m.group(0) for m in _PRIVATE_ID_RE.finditer(text)})
         if found:
-            offenders.append((str(path.relative_to(REPO_ROOT)), found[:3]))
+            offenders.append((path.relative_to(REPO_ROOT).as_posix(), found[:3]))
     assert offenders == [], offenders
 
 
@@ -311,7 +311,7 @@ def scan(wanted, salt: str, size: int, *, skip_corpus: bool = False) -> list:
             continue
         hits = {_fingerprint(s, salt) for s in _shingles(text, size)} & set(wanted)
         if hits:
-            offenders.append((str(relative), len(hits)))
+            offenders.append((relative.as_posix(), len(hits)))
     return offenders
 
 
@@ -372,7 +372,7 @@ def test_the_fingerprint_file_carries_no_plaintext(fingerprints):
 def test_the_scan_actually_covers_the_bundle():
     """A scan that silently walked zero files would pass every assertion
     above. Pin the floor so a bad `SKIP_DIRS` edit cannot disarm it."""
-    scanned = [str(p.relative_to(REPO_ROOT)) for p in _text_files()]
+    scanned = [p.relative_to(REPO_ROOT).as_posix() for p in _text_files()]
     assert len(scanned) > 100, len(scanned)
     for expected in ("scripts/run_practice.py", "data/briefs_public.json",
                      "harness/agent.py", "arena/scorer.py"):

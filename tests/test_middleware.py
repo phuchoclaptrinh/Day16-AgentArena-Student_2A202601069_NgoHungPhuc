@@ -878,7 +878,7 @@ def test_the_frozen_modules_are_untouched():
         "arena/model.py": "7e71ed083122dc4f68373a1df7ed4f75",
     }
     for path, digest in expected.items():
-        data = (REPO_ROOT / path).read_bytes()
+        data = (REPO_ROOT / path).read_bytes().replace(b"\r\n", b"\n")
         assert hashlib.md5(data).hexdigest() == digest, path
 
 

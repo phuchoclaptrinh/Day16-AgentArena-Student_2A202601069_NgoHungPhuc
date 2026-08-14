@@ -87,7 +87,10 @@ def check_frozen():
         if not path.exists():
             bad.append(f"{relative}: thiếu file")
             continue
-        digest = hashlib.md5(path.read_bytes()).hexdigest()
+        # Git có thể checkout CRLF trên Windows dù nội dung logic không đổi.
+        # Băm dạng LF chuẩn để phép kiểm tra nhất quán giữa các hệ điều hành.
+        data = path.read_bytes().replace(b"\r\n", b"\n")
+        digest = hashlib.md5(data).hexdigest()
         if digest != expected:
             bad.append(f"{relative}: {digest} != {expected}")
     if bad:
@@ -665,13 +668,22 @@ def check_student_layers():
 
 
 def check_pytest():
+    env = _clean_env()
+    env["PYTHONIOENCODING"] = "utf-8"
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "-q"],
-        capture_output=True, text=True, cwd=str(LAB_ROOT), env=_clean_env(),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=str(LAB_ROOT),
+        env=env,
     )
-    tail = proc.stdout.strip().splitlines()[-1] if proc.stdout.strip() else ""
+    stdout = proc.stdout or ""
+    stderr = proc.stderr or ""
+    tail = stdout.strip().splitlines()[-1] if stdout.strip() else ""
     if proc.returncode != 0:
-        return False, tail or proc.stderr.strip()[-300:]
+        return False, tail or stderr.strip()[-300:]
     return tail
 
 

@@ -203,6 +203,9 @@ _FINAL_MARKER = "FINAL:"
 REAL_MODEL_PROMPT_ADDENDUM = """PHỤ LỤC GIAO THỨC — BẮT BUỘC. Nếu có mâu thuẫn, phụ lục này thắng.
 
 A. PHẢI TÌM TRƯỚC KHI ĐƯỢC PHÉP NÓI "KHÔNG ĐỦ CĂN CỨ".
+   Lượt đầu tiên của bạn luôn luôn là một ACTION gọi search. Không được kết luận
+   ở lượt đầu tiên. Sau lượt tìm đầu, hãy diễn đạt lại câu hỏi bằng taxonomy nội
+   bộ và tìm lại ít nhất một lần nữa trước khi kết luận.
    HAI lượt đầu tiên của bạn luôn luôn là hai ACTION gọi search với HAI truy
    vấn khác nhau và k=5. Không được gọi fetch_doc trước khi hoàn thành cả hai.
    Truy vấn thứ nhất bám sát câu hỏi. Truy vấn thứ hai bỏ chi tiết kể chuyện

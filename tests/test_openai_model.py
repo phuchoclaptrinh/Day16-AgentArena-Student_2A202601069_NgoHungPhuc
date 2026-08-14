@@ -8,7 +8,7 @@ def test_structural_query_maps_partner_language_to_supplier_taxonomy():
         "thống kê hồ sơ đối tác mới bị trả lại",
     )
 
-    assert "báo cáo nội bộ" in query
+    assert "báo cáo" in query
     assert "quy trình làm việc với nhà cung cấp" in query
     assert "mới" in query
     assert "Phòng Đào tạo" in query
@@ -31,8 +31,20 @@ def test_structural_query_maps_returns_to_refund_report():
         "quy trình đổi trả hàng lỗi",
     )
 
-    assert "báo cáo nội bộ" in query
+    assert "báo cáo" in query
     assert "chính sách hoàn tiền cho khách hàng" in query
+
+
+def test_duration_question_stays_on_business_trip_policy():
+    question = (
+        "Theo quy định báo cáo chi phí công tác, sự việc phải báo cho phòng nào "
+        "và trong vòng bao nhiêu giờ?"
+    )
+    query = _structural_query(question, "giao hàng trễ SLA")
+
+    assert "quy định báo cáo chi phí công tác" in query
+    assert "văn bản chính thức" in query
+    assert "thống kê" not in query
 
 
 def test_complete_rewrites_only_the_third_search(monkeypatch):
